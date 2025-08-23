@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Switch,
+  Alert,
 } from 'react-native';
 import { User, Settings, Shield, CreditCard, Bell, CircleHelp as HelpCircle, LogOut, ChevronRight, Star, Lock } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MenuSection {
   title: string;
@@ -27,6 +29,7 @@ interface MenuItem {
 }
 
 export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
   const [biometricsEnabled, setBiometricsEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
@@ -116,7 +119,21 @@ export default function ProfileScreen() {
           type: 'action',
           destructive: true,
           onPress: () => {
-            // Handle logout
+            Alert.alert(
+              'Sign Out',
+              'Are you sure you want to sign out?',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: signOut,
+                },
+              ]
+            );
           },
         },
       ],
@@ -186,8 +203,8 @@ export default function ProfileScreen() {
             <Text style={styles.userAvatarText}>T</Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>Tayo Adebayo</Text>
-            <Text style={styles.userEmail}>tayo.adebayo@example.com</Text>
+                      <Text style={styles.userName}>{user?.fullName || 'User'}</Text>
+          <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
             <View style={styles.verificationBadge}>
               <Shield size={12} color="#00BFA6" strokeWidth={2} />
               <Text style={styles.verificationText}>Verified Account</Text>
