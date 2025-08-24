@@ -272,6 +272,91 @@ export type SubscriptionStatus = 'active' | 'cancelled' | 'paused' | 'expired';
 
 export type SubscriptionFrequency = 'monthly' | 'yearly' | 'weekly' | 'daily';
 
+// Automation Types
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  priority: number;
+  category: 'savings' | 'investment' | 'bill-payment' | 'debt-repayment' | 'emergency-fund' | 'custom';
+  trigger: {
+    type: 'transaction' | 'time' | 'balance' | 'schedule' | 'income-detection';
+    conditions: TriggerCondition[];
+    frequency?: 'once' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+    schedule?: {
+      dayOfWeek?: number;
+      dayOfMonth?: number;
+      time?: string;
+      timezone?: string;
+    };
+  };
+  action: {
+    type: 'transfer' | 'savings' | 'investment' | 'bill-payment' | 'notification';
+    sourceAccountId: string;
+    destinationAccountId?: string;
+    amount: {
+      type: 'fixed' | 'percentage' | 'remaining' | 'calculated';
+      value: number;
+      currency: string;
+      minAmount?: number;
+      maxAmount?: number;
+    };
+    description: string;
+    metadata?: Record<string, any>;
+  };
+  execution: {
+    lastExecuted?: string;
+    nextExecution?: string;
+    executionCount: number;
+    maxExecutions?: number;
+    retryCount: number;
+    maxRetries: number;
+    status: 'pending' | 'active' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  };
+  nigerianContext?: {
+    localBanks?: string[];
+    localServices?: string[];
+    regulatoryCompliance?: boolean;
+    taxImplications?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  tags?: string[];
+}
+
+export interface TriggerCondition {
+  field: 'amount' | 'category' | 'vendor' | 'description' | 'balance' | 'date' | 'frequency';
+  operator: 'equals' | 'not-equals' | 'greater-than' | 'less-than' | 'contains' | 'starts-with' | 'ends-with' | 'between' | 'in' | 'not-in';
+  value: any;
+  secondaryValue?: any;
+}
+
+export interface AutomationExecution {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  status: 'pending' | 'executing' | 'completed' | 'failed' | 'cancelled';
+  triggerData: any;
+  actionResult: any;
+  errorMessage?: string;
+  executionTime: string;
+  processingTime: number;
+  metadata?: Record<string, any>;
+}
+
+export interface AutomationStats {
+  totalRules: number;
+  activeRules: number;
+  totalExecutions: number;
+  successfulExecutions: number;
+  failedExecutions: number;
+  totalAmountProcessed: number;
+  monthlySavings: number;
+  efficiency: number;
+}
+
 // Constants
 export const TRANSACTION_CATEGORIES = [
   'Income',

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { CreditCard, Chrome as Home, RotateCcw, User, Bell } from 'lucide-react-native';
+import { CreditCard, Chrome as Home, RotateCcw, User, Bell, Zap } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -46,6 +46,15 @@ export default function TabLayout() {
           title: 'Subscriptions',
           tabBarIcon: ({ size, color }) => (
             <RotateCcw size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="automation"
+        options={{
+          title: 'Automation',
+          tabBarIcon: ({ size, color }) => (
+            <Zap size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
