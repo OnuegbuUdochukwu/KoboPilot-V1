@@ -84,17 +84,22 @@ export interface TransactionCategory {
 // Subscription Types
 export interface Subscription {
   id: string;
-  name: string;
-  amount: number;
-  frequency: 'monthly' | 'yearly' | 'weekly' | 'daily';
-  nextPayment: string;
-  category: string;
   vendor: string;
-  status: 'active' | 'cancelled' | 'paused' | 'expired';
-  bank: string;
-  accountId: string;
-  lastPayment: string;
-  cancellationUrl?: string;
+  averageAmount: number;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
+  confidence: number;
+  lastPaymentDate: string;
+  nextPaymentDate: string;
+  transactionCount: number;
+  category: string;
+  isActive: boolean;
+  cancellationDate?: string;
+  totalSpent: number;
+  pattern: {
+    amountVariation: number;
+    dateVariation: number;
+    consistency: number;
+  };
   metadata?: SubscriptionMetadata;
 }
 
