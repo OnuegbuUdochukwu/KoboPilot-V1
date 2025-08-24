@@ -51,6 +51,11 @@ export interface Transaction {
   amount: number;
   type: 'credit' | 'debit';
   category: string;
+  subcategory?: string;
+  confidence?: number;
+  tags?: string[];
+  isUserCorrected?: boolean;
+  categorizationDate?: string;
   date: string;
   bank: string;
   accountId: string;
@@ -73,6 +78,7 @@ export interface TransactionCategory {
   icon: string;
   color: string;
   parentCategory?: string;
+  nigerianContext?: string[];
 }
 
 // Subscription Types

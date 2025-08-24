@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,43 +7,61 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
-import { ArrowLeft, Shield, CheckCircle, Building2, ArrowRight } from 'lucide-react-native';
+import { ArrowLeft, Shield, CheckCircle, ArrowRight, AlertCircle } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface Bank {
-  id: string;
-  name: string;
-  logo: string;
-  isPopular: boolean;
-}
-
-const popularBanks: Bank[] = [
-  { id: '1', name: 'GTBank', logo: 'GT', isPopular: true },
-  { id: '2', name: 'Access Bank', logo: 'AB', isPopular: true },
-  { id: '3', name: 'Zenith Bank', logo: 'ZB', isPopular: true },
-  { id: '4', name: 'First Bank', logo: 'FB', isPopular: true },
-  { id: '5', name: 'UBA', logo: 'UBA', isPopular: true },
-  { id: '6', name: 'Stanbic IBTC', logo: 'SI', isPopular: false },
-  { id: '7', name: 'Fidelity Bank', logo: 'FB', isPopular: false },
-  { id: '8', name: 'Union Bank', logo: 'UB', isPopular: false },
-  { id: '9', name: 'Ecobank', logo: 'EB', isPopular: false },
-  { id: '10', name: 'Wema Bank', logo: 'WB', isPopular: false },
+// Temporary mock data until we fix the import issues
+const SUPPORTED_BANKS = [
+  { id: 'gtbank', name: 'GTBank', logo: 'GT', isPopular: true, openBankingSupported: true },
+  { id: 'access-bank', name: 'Access Bank', logo: 'AB', isPopular: true, openBankingSupported: true },
+  { id: 'zenith-bank', name: 'Zenith Bank', logo: 'ZB', isPopular: true, openBankingSupported: true },
+  { id: 'first-bank', name: 'First Bank', logo: 'FB', isPopular: true, openBankingSupported: true },
+  { id: 'uba', name: 'UBA', logo: 'UBA', isPopular: true, openBankingSupported: true },
 ];
+
+enum ConnectionStatus {
+  PENDING = 'pending',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  FAILED = 'failed',
+  DISCONNECTED = 'disconnected',
+}
 
 export default function BankConnectionScreen() {
   const { completeBankConnection } = useAuth();
-  const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
+  const [selectedBank, setSelectedBank] = useState<any>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(ConnectionStatus.DISCONNECTED);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  const filteredBanks = popularBanks.filter(bank =>
+  const filteredBanks = SUPPORTED_BANKS.filter(bank =>
     bank.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleBankSelection = (bank: Bank) => {
+  // Initialize Open Banking service
+  useEffect(() => {
+    initializeOpenBanking();
+  }, []);
+
+  const initializeOpenBanking = async () => {
+    try {
+      setIsInitializing(true);
+      // TODO: Initialize Open Banking service when imports are fixed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setConnectionStatus(ConnectionStatus.DISCONNECTED);
+    } catch (error) {
+      console.error('Failed to initialize Open Banking:', error);
+      Alert.alert('Initialization Error', 'Failed to initialize Open Banking service. Please try again.');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  const handleBankSelection = (bank: any) => {
     setSelectedBank(bank);
   };
 
@@ -52,13 +70,16 @@ export default function BankConnectionScreen() {
 
     setIsConnecting(true);
     try {
-      // TODO: Implement actual Open Banking SDK integration
-      // This would typically involve:
-      // 1. Opening the bank's login portal in a webview
-      // 2. User authenticating with their bank
-      // 3. Receiving read-only access tokens
-      // 4. Never storing user banking credentials
-      
+      // Check if bank supports Open Banking
+      if (!selectedBank.openBankingSupported) {
+        Alert.alert(
+          'Open Banking Not Supported',
+          `${selectedBank.name} does not currently support Open Banking integration. Please select another bank.`
+        );
+        return;
+      }
+
+      // TODO: Implement actual Open Banking connection when imports are fixed
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Complete bank connection
@@ -66,7 +87,7 @@ export default function BankConnectionScreen() {
       
       Alert.alert(
         'Success!',
-        `${selectedBank.name} account connected successfully. Your financial data is now being synced.`,
+        `${selectedBank.name} account connected successfully via Open Banking. Your financial data is now being synced securely.`,
         [
           {
             text: 'Continue',
@@ -75,7 +96,11 @@ export default function BankConnectionScreen() {
         ]
       );
     } catch (error) {
-      Alert.alert('Connection Failed', 'Unable to connect to bank. Please try again.');
+      console.error('Bank connection error:', error);
+      Alert.alert(
+        'Connection Failed', 
+        `Unable to connect to ${selectedBank.name}. Please try again.`
+      );
     } finally {
       setIsConnecting(false);
     }
@@ -127,11 +152,52 @@ export default function BankConnectionScreen() {
           </Text>
         </View>
 
+        {/* Connection Status */}
+        {connectionStatus !== ConnectionStatus.DISCONNECTED && (
+          <View style={[
+            styles.connectionStatusCard,
+            connectionStatus === ConnectionStatus.CONNECTED && styles.connectedStatusCard,
+            connectionStatus === ConnectionStatus.FAILED && styles.failedStatusCard
+          ]}>
+            <View style={styles.connectionStatusHeader}>
+              {connectionStatus === ConnectionStatus.CONNECTED ? (
+                <CheckCircle size={20} color="#10B981" strokeWidth={2} />
+              ) : (
+                <AlertCircle size={20} color="#EF4444" strokeWidth={2} />
+              )}
+              <Text style={[
+                styles.connectionStatusTitle,
+                connectionStatus === ConnectionStatus.CONNECTED && styles.connectedStatusTitle,
+                connectionStatus === ConnectionStatus.FAILED && styles.failedStatusTitle
+              ]}>
+                {connectionStatus === ConnectionStatus.CONNECTED ? 'Bank Connected' : 'Connection Failed'}
+              </Text>
+            </View>
+            <Text style={[
+              styles.connectionStatusText,
+              connectionStatus === ConnectionStatus.CONNECTED && styles.connectedStatusText,
+              connectionStatus === ConnectionStatus.FAILED && styles.failedStatusText
+            ]}>
+              {connectionStatus === ConnectionStatus.CONNECTED 
+                ? 'Your bank account is securely connected via Open Banking. Data sync is active.'
+                : 'There was an issue with your bank connection. Please try reconnecting.'
+              }
+            </Text>
+          </View>
+        )}
+
         {/* Bank Selection */}
         <View style={styles.bankSelection}>
           <Text style={styles.sectionTitle}>Select Your Bank</Text>
           
-          {selectedBank && (
+          {isInitializing && (
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color="#00BFA6" />
+              <Text style={styles.loadingText}>Initializing Open Banking...</Text>
+            </View>
+          )}
+          
+          {!isInitializing && selectedBank && (
             <View style={styles.selectedBankCard}>
               <View style={styles.selectedBankInfo}>
                 <View style={styles.bankLogo}>
@@ -139,9 +205,15 @@ export default function BankConnectionScreen() {
                 </View>
                 <View style={styles.bankDetails}>
                   <Text style={styles.bankName}>{selectedBank.name}</Text>
-                  <Text style={styles.bankStatus}>Ready to connect</Text>
+                  <Text style={styles.bankStatus}>
+                    {selectedBank.openBankingSupported ? 'Open Banking Ready' : 'Standard Connection'}
+                  </Text>
                 </View>
-                <CheckCircle size={20} color="#00BFA6" strokeWidth={2} />
+                {selectedBank.openBankingSupported ? (
+                  <CheckCircle size={20} color="#00BFA6" strokeWidth={2} />
+                ) : (
+                  <AlertCircle size={20} color="#F59E0B" strokeWidth={2} />
+                )}
               </View>
             </View>
           )}
@@ -162,6 +234,11 @@ export default function BankConnectionScreen() {
                   <Text style={styles.bankLogoText}>{bank.logo}</Text>
                 </View>
                 <Text style={styles.bankName}>{bank.name}</Text>
+                {bank.openBankingSupported && (
+                  <View style={styles.openBankingBadge}>
+                    <Text style={styles.openBankingBadgeText}>Open Banking</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -428,5 +505,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  // Connection Status Styles
+  connectionStatusCard: {
+    backgroundColor: '#FEF3C7',
+    marginHorizontal: 24,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  connectedStatusCard: {
+    backgroundColor: '#F0FDF4',
+    borderLeftColor: '#10B981',
+  },
+  failedStatusCard: {
+    backgroundColor: '#FEF2F2',
+    borderLeftColor: '#EF4444',
+  },
+  connectionStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  connectionStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
+  connectedStatusTitle: {
+    color: '#10B981',
+  },
+  failedStatusTitle: {
+    color: '#EF4444',
+  },
+  connectionStatusText: {
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
+  },
+  connectedStatusText: {
+    color: '#166534',
+  },
+  failedStatusText: {
+    color: '#991B1B',
+  },
+  // Loading Styles
+  loadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 40,
+    marginBottom: 24,
+    alignItems: 'center',
+    shadowColor: '#0A2A4E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  // Open Banking Badge
+  openBankingBadge: {
+    backgroundColor: '#00BFA6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  openBankingBadgeText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
