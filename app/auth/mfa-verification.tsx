@@ -11,18 +11,33 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { ArrowLeft, Shield, Smartphone, Mail, Smartphone as AuthenticatorIcon } from 'lucide-react-native';
+import { ArrowLeft, Shield, Smartphone, Mail, Smartphone as AuthenticatorIcon, ArrowRight } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { mfaService } from '@/api/services/mfa';
 
-export default function MFASetupScreen() {
-  const { completeMfaSetup } = useAuth();
-  const [mfaMethod, setMfaMethod] = useState<'sms' | 'email' | null>(null);
+interface MFAVerificationProps {
+  onVerificationComplete: () => void;
+  availableMethods?: Array<{
+    id: string;
+    type: 'sms' | 'email' | 'totp';
+    name: string;
+    value: string;
+  }>;
+}
+
+export default function MFAVerificationScreen({ 
+  onVerificationComplete, 
+  availableMethods = [] 
+}: MFAVerificationProps) {
+  const { user, verifyMFA } = useAuth();
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [backupCode, setBackupCode] = useState('');
+  const [showBackupInput, setShowBackupInput] = useState(false);
   
   const inputRefs = useRef<TextInput[]>([]);
 
@@ -53,17 +68,15 @@ export default function MFASetupScreen() {
     }
   };
 
-  const handleSendCode = async (method: 'sms' | 'email') => {
+  const handleSendCode = async (methodType: 'sms' | 'email') => {
     if (!user) return;
     
-    setMfaMethod(method);
+    setSelectedMethod(methodType);
     setIsLoading(true);
     
     try {
       let result;
-      if (method === 'sms') {
-        // For demo purposes, we'll use a mock phone number
-        // In production, you'd get this from user profile
+      if (methodType === 'sms') {
         result = await mfaService.sendSMSOTP('+2348012345678');
       } else {
         result = await mfaService.sendEmailOTP(user.email);
@@ -71,7 +84,7 @@ export default function MFASetupScreen() {
       
       if (result.success) {
         setCountdown(60); // Start 60 second countdown
-        Alert.alert('Success', `Verification code sent to your ${method === 'sms' ? 'phone' : 'email'}`);
+        Alert.alert('Success', `Verification code sent to your ${methodType === 'sms' ? 'phone' : 'email'}`);
       } else {
         Alert.alert('Error', 'Failed to send verification code. Please try again.');
       }
@@ -83,12 +96,12 @@ export default function MFASetupScreen() {
   };
 
   const handleResendCode = async () => {
-    if (!mfaMethod || !user) return;
+    if (!selectedMethod || !user) return;
     
     setIsResending(true);
     try {
       let result;
-      if (mfaMethod === 'sms') {
+      if (selectedMethod === 'sms') {
         result = await mfaService.sendSMSOTP('+2348012345678');
       } else {
         result = await mfaService.sendEmailOTP(user.email);
@@ -108,7 +121,7 @@ export default function MFASetupScreen() {
   };
 
   const handleVerifyCode = async () => {
-    if (!user || !mfaMethod) return;
+    if (!user || !selectedMethod) return;
     
     const code = verificationCode.join('');
     if (code.length !== 6) {
@@ -119,29 +132,17 @@ export default function MFASetupScreen() {
     setIsLoading(true);
     try {
       let isValid;
-      if (mfaMethod === 'sms') {
+      if (selectedMethod === 'sms') {
         isValid = await mfaService.verifyOTP('sms', '+2348012345678', code);
-      } else {
+      } else if (selectedMethod === 'email') {
         isValid = await mfaService.verifyOTP('email', user.email, code);
+      } else {
+        // For TOTP, we'd need the secret from the user's MFA setup
+        isValid = await verifyMFA(selectedMethod, code);
       }
       
       if (isValid) {
-        // Setup MFA method
-        const mfaMethodData = {
-          id: `${mfaMethod}_${Date.now()}`,
-          type: mfaMethod,
-          name: mfaMethod === 'sms' ? 'SMS Verification' : 'Email Verification',
-          value: mfaMethod === 'sms' ? '+2348012345678' : user.email,
-          isEnabled: true,
-          isDefault: true,
-          createdAt: new Date().toISOString(),
-        };
-
-        await mfaService.setupMFA(user.id, mfaMethodData);
-        await completeMfaSetup();
-        
-        // Navigate to backup codes
-        router.push('/auth/backup-codes');
+        onVerificationComplete();
       } else {
         Alert.alert('Error', 'Invalid verification code. Please try again.');
         setVerificationCode(['', '', '', '', '', '']);
@@ -154,7 +155,28 @@ export default function MFASetupScreen() {
     }
   };
 
-  const canVerify = verificationCode.every(digit => digit !== '') && mfaMethod;
+  const handleVerifyBackupCode = async () => {
+    if (!user || !backupCode.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const isValid = await mfaService.verifyBackupCode(user.id, backupCode.trim());
+      
+      if (isValid) {
+        onVerificationComplete();
+      } else {
+        Alert.alert('Error', 'Invalid backup code. Please try again.');
+        setBackupCode('');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Invalid backup code. Please try again.');
+      setBackupCode('');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const canVerify = verificationCode.every(digit => digit !== '') && selectedMethod;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -171,69 +193,99 @@ export default function MFASetupScreen() {
             >
               <ArrowLeft size={24} color="#0A2A4E" strokeWidth={2} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Secure Your Account</Text>
+            <Text style={styles.headerTitle}>Two-Factor Authentication</Text>
             <Text style={styles.headerSubtitle}>
-              Set up two-factor authentication to protect your financial data
+              Enter the verification code to continue
             </Text>
           </View>
 
-          {/* MFA Method Selection */}
-          {!mfaMethod && (
+          {/* Method Selection */}
+          {!selectedMethod && !showBackupInput && (
             <View style={styles.methodSelection}>
               <Text style={styles.sectionTitle}>Choose verification method</Text>
               
+              {availableMethods.map((method) => (
+                <TouchableOpacity 
+                  key={method.id}
+                  style={styles.methodCard}
+                  onPress={() => {
+                    if (method.type === 'totp') {
+                      setSelectedMethod('totp');
+                    } else {
+                      handleSendCode(method.type);
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  <View style={styles.methodIcon}>
+                    {method.type === 'sms' && <Smartphone size={24} color="#00BFA6" strokeWidth={2} />}
+                    {method.type === 'email' && <Mail size={24} color="#00BFA6" strokeWidth={2} />}
+                    {method.type === 'totp' && <AuthenticatorIcon size={24} color="#00BFA6" strokeWidth={2} />}
+                  </View>
+                  <View style={styles.methodContent}>
+                    <Text style={styles.methodTitle}>{method.name}</Text>
+                    <Text style={styles.methodDescription}>
+                      {method.type === 'totp' ? 'Use your authenticator app' : `Send code to ${method.value}`}
+                    </Text>
+                  </View>
+                  <ArrowRight size={20} color="#6B7280" strokeWidth={2} />
+                </TouchableOpacity>
+              ))}
+
               <TouchableOpacity 
-                style={styles.methodCard}
-                onPress={() => handleSendCode('sms')}
-                disabled={isLoading}
+                style={styles.backupButton}
+                onPress={() => setShowBackupInput(true)}
               >
-                <View style={styles.methodIcon}>
-                  <Smartphone size={24} color="#00BFA6" strokeWidth={2} />
-                </View>
-                <View style={styles.methodContent}>
-                  <Text style={styles.methodTitle}>SMS Verification</Text>
-                  <Text style={styles.methodDescription}>
-                    Receive a 6-digit code via text message
-                  </Text>
-                </View>
+                <Text style={styles.backupButtonText}>Use backup code instead</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Backup Code Input */}
+          {showBackupInput && (
+            <View style={styles.backupSection}>
+              <Text style={styles.sectionTitle}>Enter Backup Code</Text>
+              <Text style={styles.sectionDescription}>
+                Enter one of your backup codes to sign in
+              </Text>
+              
+              <TextInput
+                style={styles.backupInput}
+                value={backupCode}
+                onChangeText={setBackupCode}
+                placeholder="Enter 8-character backup code"
+                autoCapitalize="characters"
+                maxLength={8}
+                autoFocus
+              />
+              
+              <TouchableOpacity 
+                style={[
+                  styles.verifyButton,
+                  (!backupCode.trim() || isLoading) && styles.disabledButton
+                ]} 
+                onPress={handleVerifyBackupCode}
+                disabled={!backupCode.trim() || isLoading}
+              >
+                <Text style={styles.verifyButtonText}>
+                  {isLoading ? 'Verifying...' : 'Verify Backup Code'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={styles.methodCard}
-                onPress={() => handleSendCode('email')}
-                disabled={isLoading}
+                style={styles.changeMethodButton}
+                onPress={() => {
+                  setShowBackupInput(false);
+                  setBackupCode('');
+                }}
               >
-                <View style={styles.methodIcon}>
-                  <Mail size={24} color="#00BFA6" strokeWidth={2} />
-                </View>
-                <View style={styles.methodContent}>
-                  <Text style={styles.methodTitle}>Email Verification</Text>
-                  <Text style={styles.methodDescription}>
-                    Receive a 6-digit code via email
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.methodCard}
-                onPress={() => router.push('/auth/totp-setup')}
-                disabled={isLoading}
-              >
-                <View style={styles.methodIcon}>
-                  <AuthenticatorIcon size={24} color="#00BFA6" strokeWidth={2} />
-                </View>
-                <View style={styles.methodContent}>
-                  <Text style={styles.methodTitle}>Authenticator App</Text>
-                  <Text style={styles.methodDescription}>
-                    Use Google Authenticator or similar apps
-                  </Text>
-                </View>
+                <Text style={styles.changeMethodText}>Choose different method</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Verification Code Input */}
-          {mfaMethod && (
+          {selectedMethod && !showBackupInput && (
             <View style={styles.verificationSection}>
               <View style={styles.verificationHeader}>
                 <Shield size={24} color="#00BFA6" strokeWidth={2} />
@@ -241,7 +293,10 @@ export default function MFASetupScreen() {
                   Enter verification code
                 </Text>
                 <Text style={styles.verificationSubtitle}>
-                  We sent a 6-digit code to your {mfaMethod === 'sms' ? 'phone' : 'email'}
+                  {selectedMethod === 'totp' 
+                    ? 'Enter the 6-digit code from your authenticator app'
+                    : `We sent a 6-digit code to your ${selectedMethod === 'sms' ? 'phone' : 'email'}`
+                  }
                 </Text>
               </View>
 
@@ -274,24 +329,36 @@ export default function MFASetupScreen() {
               </TouchableOpacity>
 
               {/* Resend Code */}
-              <View style={styles.resendSection}>
-                <Text style={styles.resendText}>Didn't receive the code? </Text>
-                {countdown > 0 ? (
-                  <Text style={styles.countdownText}>Resend in {countdown}s</Text>
-                ) : (
-                  <TouchableOpacity onPress={handleResendCode} disabled={isResending}>
-                    <Text style={styles.resendButtonText}>
-                      {isResending ? 'Sending...' : 'Resend Code'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+              {selectedMethod !== 'totp' && (
+                <View style={styles.resendSection}>
+                  <Text style={styles.resendText}>Didn't receive the code? </Text>
+                  {countdown > 0 ? (
+                    <Text style={styles.countdownText}>Resend in {countdown}s</Text>
+                  ) : (
+                    <TouchableOpacity onPress={handleResendCode} disabled={isResending}>
+                      <Text style={styles.resendButtonText}>
+                        {isResending ? 'Sending...' : 'Resend Code'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              <TouchableOpacity 
+                style={styles.backupButton}
+                onPress={() => setShowBackupInput(true)}
+              >
+                <Text style={styles.backupButtonText}>Use backup code instead</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.changeMethodButton}
-                onPress={() => setMfaMethod(null)}
+                onPress={() => {
+                  setSelectedMethod(null);
+                  setVerificationCode(['', '', '', '', '', '']);
+                }}
               >
-                <Text style={styles.changeMethodText}>Change verification method</Text>
+                <Text style={styles.changeMethodText}>Choose different method</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -387,6 +454,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
+  },
+  backupButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  backupButtonText: {
+    fontSize: 14,
+    color: '#00BFA6',
+    fontWeight: '600',
+  },
+  backupSection: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  backupInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0A2A4E',
+    textAlign: 'center',
+    marginBottom: 20,
+    shadowColor: '#0A2A4E',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   verificationSection: {
     paddingHorizontal: 24,

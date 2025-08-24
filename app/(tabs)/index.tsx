@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { 
   Eye, 
@@ -14,83 +15,39 @@ import {
   ArrowUpRight, 
   ArrowDownLeft,
   Plus,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react-native';
-
-interface Transaction {
-  id: string;
-  description: string;
-  amount: number;
-  type: 'credit' | 'debit';
-  category: string;
-  date: string;
-  bank: string;
-}
-
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    description: 'GTBank Salary',
-    amount: 450000,
-    type: 'credit',
-    category: 'Income',
-    date: '2025-01-15',
-    bank: 'GTBank'
-  },
-  {
-    id: '2',
-    description: 'Netflix Subscription',
-    amount: 2900,
-    type: 'debit',
-    category: 'Entertainment',
-    date: '2025-01-14',
-    bank: 'Access Bank'
-  },
-  {
-    id: '3',
-    description: 'Jumia Online Shopping',
-    amount: 24500,
-    type: 'debit',
-    category: 'Shopping',
-    date: '2025-01-13',
-    bank: 'GTBank'
-  },
-  {
-    id: '4',
-    description: 'Uber Trip',
-    amount: 3200,
-    type: 'debit',
-    category: 'Transport',
-    date: '2025-01-13',
-    bank: 'Zenith Bank'
-  },
-  {
-    id: '5',
-    description: 'Freelance Payment',
-    amount: 85000,
-    type: 'credit',
-    category: 'Income',
-    date: '2025-01-12',
-    bank: 'First Bank'
-  }
-];
+import { useDashboard, useQuickStats } from '@/hooks/useApiData';
+import { Transaction, SpendingInsight } from '@/types';
 
 export default function DashboardScreen() {
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [transactions, setTransactions] = useState(mockTransactions);
-
-  const totalBalance = 1247350;
-  const monthlyIncome = 535000;
-  const monthlyExpenses = 187650;
+  
+  // Use API hooks for data fetching
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading, 
+    error: dashboardError, 
+    refetch: refetchDashboard 
+  } = useDashboard();
+  
+  const { 
+    data: quickStats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = useQuickStats();
 
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
+    refetchDashboard();
+  }, [refetchDashboard]);
+
+  // Extract data with fallbacks
+  const transactions = dashboardData?.recentTransactions || [];
+  const insights = dashboardData?.insights || [];
+  const totalBalance = quickStats?.totalBalance || 0;
+  const monthlyIncome = quickStats?.monthlyIncome || 0;
+  const monthlyExpenses = quickStats?.monthlyExpenses || 0;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -120,12 +77,42 @@ export default function DashboardScreen() {
     return colors[category] || '#6B7280';
   };
 
+  // Show loading state
+  if (dashboardLoading || statsLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00BFA6" />
+          <Text style={styles.loadingText}>Loading your financial data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state
+  if (dashboardError || statsError) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <AlertCircle size={48} color="#EF4444" strokeWidth={2} />
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorText}>
+            {dashboardError?.message || statsError?.message || 'Unable to load your financial data'}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={dashboardLoading} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -237,19 +224,25 @@ export default function DashboardScreen() {
         </View>
 
         {/* Insights Card */}
-        <View style={styles.insightsCard}>
-          <View style={styles.insightsHeader}>
-            <TrendingUp size={20} color="#00BFA6" strokeWidth={2} />
-            <Text style={styles.insightsTitle}>Financial Insights</Text>
+        {insights.length > 0 && (
+          <View style={styles.insightsCard}>
+            <View style={styles.insightsHeader}>
+              <TrendingUp size={20} color="#00BFA6" strokeWidth={2} />
+              <Text style={styles.insightsTitle}>Financial Insights</Text>
+            </View>
+            {insights.slice(0, 2).map((insight) => (
+              <View key={insight.id} style={styles.insightItem}>
+                <Text style={styles.insightTitle}>{insight.title}</Text>
+                <Text style={styles.insightText}>{insight.description}</Text>
+                {insight.actionable && (
+                  <TouchableOpacity style={styles.insightButton}>
+                    <Text style={styles.insightButtonText}>{insight.actionText}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
           </View>
-          <Text style={styles.insightsText}>
-            You've saved 23% more this month compared to last month. 
-            Consider reviewing your subscription spending to save even more.
-          </Text>
-          <TouchableOpacity style={styles.insightsButton}>
-            <Text style={styles.insightsButtonText}>View Full Report</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -262,6 +255,47 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#0A2A4E',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#00BFA6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -505,7 +539,7 @@ const styles = StyleSheet.create({
   insightsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     gap: 8,
   },
   insightsTitle: {
@@ -513,21 +547,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0A2A4E',
   },
-  insightsText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
+  insightItem: {
     marginBottom: 16,
   },
-  insightsButton: {
+  insightTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0A2A4E',
+    marginBottom: 4,
+  },
+  insightText: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  insightButton: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
     alignSelf: 'flex-start',
   },
-  insightsButtonText: {
-    fontSize: 13,
+  insightButtonText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#0A2A4E',
   },

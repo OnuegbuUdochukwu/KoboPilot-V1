@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mfaService } from '@/api/services/mfa';
 
 interface User {
   id: string;
@@ -18,6 +19,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   completeMfaSetup: () => Promise<void>;
   completeBankConnection: () => Promise<void>;
+  verifyMFA: (method: string, code: string) => Promise<boolean>;
+  isMFARequired: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -125,6 +128,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const verifyMFA = async (method: string, code: string): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      // This would be called during sign-in to verify MFA
+      // For now, we'll check if the user has MFA enabled
+      const isRequired = await mfaService.isMFARequired(user.id);
+      if (!isRequired) return true;
+      
+      // In a real implementation, you'd verify the code here
+      // For demo purposes, we'll return true
+      return true;
+    } catch (error) {
+      console.error('Error verifying MFA:', error);
+      return false;
+    }
+  };
+
+  const isMFARequired = async (): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      return await mfaService.isMFARequired(user.id);
+    } catch (error) {
+      console.error('Error checking MFA requirement:', error);
+      return false;
+    }
+  };
+
   const completeBankConnection = async () => {
     if (!user) return;
     
@@ -146,6 +178,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     completeMfaSetup,
     completeBankConnection,
+    verifyMFA,
+    isMFARequired,
   };
 
   return (
