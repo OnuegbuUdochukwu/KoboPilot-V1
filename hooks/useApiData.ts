@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoadingState, AppError } from '@/types';
 
 interface UseApiDataOptions<T> {
@@ -80,7 +80,7 @@ export function useApiData<T>(
         setIsLoading(false);
       }
     }
-  }, [fetchFunction, onSuccess, onError]);
+  }, [fetchFunction]);
 
   const refetch = useCallback(async () => {
     await fetchData();
@@ -138,13 +138,12 @@ export function useApiData<T>(
 export function useAccounts() {
   const { accountsService } = require('@/api/services/accounts');
   
-  return useApiData(
-    () => accountsService.getAccounts(),
-    {
-      autoFetch: true,
-      refreshInterval: 5 * 60 * 1000, // Refresh every 5 minutes
-    }
-  );
+  const fetchAccounts = React.useCallback(() => accountsService.getAccounts(), []);
+  
+  return useApiData(fetchAccounts, {
+    autoFetch: true,
+    refreshInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
 }
 
 export function useTransactions(
@@ -154,49 +153,51 @@ export function useTransactions(
 ) {
   const { transactionsService } = require('@/api/services/transactions');
   
-  return useApiData(
+  const fetchTransactions = React.useCallback(
     () => transactionsService.getTransactions(page, limit, filters),
-    {
-      autoFetch: true,
-      refreshInterval: 2 * 60 * 1000, // Refresh every 2 minutes
-    }
+    [page, limit, filters]
   );
+  
+  return useApiData(fetchTransactions, {
+    autoFetch: true,
+    refreshInterval: 2 * 60 * 1000, // Refresh every 2 minutes
+  });
 }
 
 export function useSubscriptions(filters?: any) {
   const { subscriptionsService } = require('@/api/services/subscriptions');
   
-  return useApiData(
+  const fetchSubscriptions = React.useCallback(
     () => subscriptionsService.getSubscriptions(filters),
-    {
-      autoFetch: true,
-      refreshInterval: 10 * 60 * 1000, // Refresh every 10 minutes
-    }
+    [filters]
   );
+  
+  return useApiData(fetchSubscriptions, {
+    autoFetch: true,
+    refreshInterval: 10 * 60 * 1000, // Refresh every 10 minutes
+  });
 }
 
 export function useDashboard() {
   const { dashboardService } = require('@/api/services/dashboard');
   
-  return useApiData(
-    () => dashboardService.getDashboardData(),
-    {
-      autoFetch: true,
-      refreshInterval: 3 * 60 * 1000, // Refresh every 3 minutes
-    }
-  );
+  const fetchDashboard = React.useCallback(() => dashboardService.getDashboardData(), []);
+  
+  return useApiData(fetchDashboard, {
+    autoFetch: true,
+    refreshInterval: 3 * 60 * 1000, // Refresh every 3 minutes
+  });
 }
 
 export function useQuickStats() {
   const { dashboardService } = require('@/api/services/dashboard');
   
-  return useApiData(
-    () => dashboardService.getQuickStats(),
-    {
-      autoFetch: true,
-      refreshInterval: 5 * 60 * 1000, // Refresh every 5 minutes
-    }
-  );
+  const fetchQuickStats = React.useCallback(() => dashboardService.getQuickStats(), []);
+  
+  return useApiData(fetchQuickStats, {
+    autoFetch: true,
+    refreshInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
 }
 
 // Hook for optimistic updates

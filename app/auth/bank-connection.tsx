@@ -154,7 +154,7 @@ export default function BankConnectionScreen() {
                 key={bank.id}
                 style={[
                   styles.bankCard,
-                  selectedBank?.id === bank.id && styles.selectedBankCard
+                  selectedBank?.id === bank.id && styles.selectedBankCardStyle
                 ]}
                 onPress={() => handleBankSelection(bank)}
               >
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  selectedBankCard: {
+  selectedBankCardStyle: {
     borderWidth: 2,
     borderColor: '#00BFA6',
   },

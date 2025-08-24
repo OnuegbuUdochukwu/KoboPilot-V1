@@ -157,6 +157,12 @@ export default function TOTPSetupScreen() {
               size={200}
               color="#0A2A4E"
               backgroundColor="#FFFFFF"
+              getRef={(c) => {
+                // Handle QR code generation
+              }}
+              onError={(error) => {
+                console.log('QR Code generation error:', error);
+              }}
             />
           </View>
         </View>

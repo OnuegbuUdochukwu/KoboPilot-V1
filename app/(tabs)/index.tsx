@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,11 +38,11 @@ export default function DashboardScreen() {
     error: statsError 
   } = useQuickStats();
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = useCallback(() => {
     refetchDashboard();
   }, [refetchDashboard]);
 
-  // Extract data with fallbacks
+  // Extract data with fallbacks and error handling
   const transactions = dashboardData?.recentTransactions || [];
   const insights = dashboardData?.insights || [];
   const totalBalance = quickStats?.totalBalance || 0;

@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { mfaService } from '@/api/services/mfa';
 
 export default function MFASetupScreen() {
-  const { completeMfaSetup } = useAuth();
+  const { user, completeMfaSetup } = useAuth();
   const [mfaMethod, setMfaMethod] = useState<'sms' | 'email' | null>(null);
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);

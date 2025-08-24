@@ -206,12 +206,32 @@ export class MockApiClient {
 
   private handleMockResponse(endpoint: string, data?: any): any {
     // Mock responses for different endpoints
+    if (endpoint.includes('/accounts/balances')) {
+      return this.getMockAccountBalances();
+    }
+    
     if (endpoint.includes('/accounts')) {
       return this.getMockAccounts();
     }
     
+    if (endpoint.includes('/transactions/recent')) {
+      return this.getMockRecentTransactions();
+    }
+    
     if (endpoint.includes('/transactions')) {
       return this.getMockTransactions();
+    }
+    
+    if (endpoint.includes('/subscriptions/active')) {
+      return this.getMockActiveSubscriptions();
+    }
+    
+    if (endpoint.includes('/subscriptions/upcoming')) {
+      return this.getMockUpcomingSubscriptions();
+    }
+    
+    if (endpoint.includes('/subscriptions/total-monthly')) {
+      return this.getMockTotalMonthlySpending();
     }
     
     if (endpoint.includes('/subscriptions')) {
@@ -223,6 +243,32 @@ export class MockApiClient {
     }
 
     return { success: true, data: null };
+  }
+
+  private getMockAccountBalances() {
+    return {
+      success: true,
+      data: [
+        {
+          accountId: '1',
+          balance: 1247350,
+          currency: 'NGN',
+          lastUpdated: '2025-01-15T10:30:00Z',
+        },
+        {
+          accountId: '2',
+          balance: 567890,
+          currency: 'NGN',
+          lastUpdated: '2025-01-15T10:30:00Z',
+        },
+        {
+          accountId: '3',
+          balance: 234567,
+          currency: 'NGN',
+          lastUpdated: '2025-01-15T10:30:00Z',
+        },
+      ],
+    };
   }
 
   private getMockAccounts() {
@@ -258,6 +304,38 @@ export class MockApiClient {
           type: 'savings',
           bank: 'Zenith Bank',
           isActive: true,
+        },
+      ],
+    };
+  }
+
+  private getMockRecentTransactions() {
+    return {
+      success: true,
+      data: [
+        {
+          id: '1',
+          amount: 50000,
+          type: 'income',
+          description: 'Salary Payment',
+          category: 'Income',
+          date: '2025-01-15T09:00:00Z',
+          bank: 'GTBank',
+          accountId: '1',
+          reference: 'SALARY/001',
+          balanceAfter: 1297350,
+        },
+        {
+          id: '2',
+          amount: 15000,
+          type: 'expense',
+          description: 'Netflix Subscription',
+          category: 'Entertainment',
+          date: '2025-01-14T00:00:00Z',
+          bank: 'Access Bank',
+          accountId: '2',
+          reference: 'NETFLIX/001',
+          balanceAfter: 552890,
         },
       ],
     };
@@ -334,6 +412,71 @@ export class MockApiClient {
         total: 156,
         totalPages: 8,
       },
+    };
+  }
+
+  private getMockActiveSubscriptions() {
+    return {
+      success: true,
+      data: [
+        {
+          id: '1',
+          name: 'Netflix',
+          amount: 2900,
+          frequency: 'monthly',
+          nextPayment: '2025-02-14T00:00:00Z',
+          category: 'Entertainment',
+          vendor: 'Netflix Inc.',
+          status: 'active',
+          bank: 'Access Bank',
+          accountId: '2',
+          lastPayment: '2025-01-14T00:00:00Z',
+          cancellationUrl: 'https://netflix.com/cancel',
+        },
+        {
+          id: '2',
+          name: 'Spotify Premium',
+          amount: 1200,
+          frequency: 'monthly',
+          nextPayment: '2025-02-09T00:00:00Z',
+          category: 'Entertainment',
+          vendor: 'Spotify AB',
+          status: 'active',
+          bank: 'First Bank',
+          accountId: '5',
+          lastPayment: '2025-01-09T00:00:00Z',
+          cancellationUrl: 'https://spotify.com/account',
+        },
+      ],
+    };
+  }
+
+  private getMockUpcomingSubscriptions() {
+    return {
+      success: true,
+      data: [
+        {
+          id: '1',
+          name: 'Netflix',
+          amount: 2900,
+          frequency: 'monthly',
+          nextPayment: '2025-02-14T00:00:00Z',
+          category: 'Entertainment',
+          vendor: 'Netflix Inc.',
+          status: 'active',
+          bank: 'Access Bank',
+          accountId: '2',
+          lastPayment: '2025-01-14T00:00:00Z',
+          cancellationUrl: 'https://netflix.com/cancel',
+        },
+      ],
+    };
+  }
+
+  private getMockTotalMonthlySpending() {
+    return {
+      success: true,
+      data: 12600, // Total monthly subscription spending
     };
   }
 
